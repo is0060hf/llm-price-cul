@@ -32,6 +32,12 @@ export async function GET() {
           cacheReadPrice: m.cacheReadPricePerMTokens,
           maxContextLength: m.maxContextLength,
           isLegacy: m.isLegacy,
+          benchmarkGpqa: m.benchmarkGpqa,
+          benchmarkSweBench: m.benchmarkSweBench,
+          benchmarkAime: m.benchmarkAime,
+          benchmarkArcAgi: m.benchmarkArcAgi,
+          benchmarkMmmu: m.benchmarkMmmu,
+          benchmarkOverall: m.benchmarkOverall,
         })
       ),
       embeddingModels: embeddingRows.map(

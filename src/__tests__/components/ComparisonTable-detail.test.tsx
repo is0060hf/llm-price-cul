@@ -2,7 +2,17 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { ComparisonTable } from "@/components/ComparisonTable";
-import type { ComparisonEntry } from "@/types";
+import type { ComparisonEntry, Model } from "@/types";
+
+const nullBenchmarks = {
+  benchmarkGpqa: null, benchmarkSweBench: null, benchmarkAime: null,
+  benchmarkArcAgi: null, benchmarkMmmu: null, benchmarkOverall: null,
+};
+
+const mockModels: Model[] = [
+  { id: 1, providerId: 1, providerName: "OpenAI", name: "GPT-4.1", category: "standard", inputPrice: 2.0, outputPrice: 8.0, cacheWritePrice: null, cacheReadPrice: 0.5, maxContextLength: 1000000, isLegacy: false, ...nullBenchmarks, benchmarkOverall: 7.5 },
+  { id: 2, providerId: 2, providerName: "Anthropic", name: "Claude Opus 4.6", category: "flagship", inputPrice: 5.0, outputPrice: 25.0, cacheWritePrice: 6.25, cacheReadPrice: 0.5, maxContextLength: 200000, isLegacy: false, ...nullBenchmarks, benchmarkOverall: 9.5, benchmarkSweBench: 80.8 },
+];
 
 const mockEntry1: ComparisonEntry = {
   id: "test-1",
@@ -15,6 +25,8 @@ const mockEntry1: ComparisonEntry = {
     steps: [
       {
         name: "メインエージェント応答",
+        modelName: "GPT-4.1",
+        description: "応答生成",
         inputTokens: 1000,
         outputTokens: 500,
         costUsd: 0.01,
@@ -25,10 +37,13 @@ const mockEntry1: ComparisonEntry = {
     dailyCostUsd: 5,
     annualCostUsd: 1200,
     monthlyCostBeforeMargin: 83.33,
+    monthlyCostJpy: 0,
+    annualCostJpy: 0,
     safetyMarginRate: 20,
     exchangeRate: 150,
     assumptions: {
       modelName: "GPT-4.1",
+      auxiliaryModelName: null,
       providerName: "OpenAI",
       dailyRequests: 100,
       monthlyWorkingDays: 20,
@@ -57,6 +72,8 @@ const mockEntry2: ComparisonEntry = {
     steps: [
       {
         name: "メインエージェント応答",
+        modelName: "Claude Opus 4.6",
+        description: "応答生成",
         inputTokens: 2000,
         outputTokens: 1000,
         costUsd: 0.02,
@@ -67,10 +84,13 @@ const mockEntry2: ComparisonEntry = {
     dailyCostUsd: 10,
     annualCostUsd: 2400,
     monthlyCostBeforeMargin: 166.67,
+    monthlyCostJpy: 0,
+    annualCostJpy: 0,
     safetyMarginRate: 20,
     exchangeRate: 150,
     assumptions: {
       modelName: "Claude Opus 4.6",
+      auxiliaryModelName: "Claude Haiku 4.5",
       providerName: "Anthropic",
       dailyRequests: 200,
       monthlyWorkingDays: 20,
@@ -91,6 +111,7 @@ const mockEntry2: ComparisonEntry = {
 describe("ComparisonTable - 詳細表示機能", () => {
   const defaultProps = {
     entries: [mockEntry1],
+    models: mockModels,
     onRemove: vi.fn(),
     onClearAll: vi.fn(),
     currency: "USD" as const,
@@ -129,6 +150,7 @@ describe("ComparisonTable - 詳細表示機能", () => {
 describe("ComparisonTable - デザイン改善", () => {
   const singleEntryProps = {
     entries: [mockEntry1],
+    models: mockModels,
     onRemove: vi.fn(),
     onClearAll: vi.fn(),
     currency: "USD" as const,
@@ -137,6 +159,7 @@ describe("ComparisonTable - デザイン改善", () => {
 
   const twoEntryProps = {
     entries: [mockEntry1, mockEntry2],
+    models: mockModels,
     onRemove: vi.fn(),
     onClearAll: vi.fn(),
     currency: "USD" as const,

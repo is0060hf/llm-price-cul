@@ -28,7 +28,7 @@ import type {
   UseCaseType,
   TextLengthPreset,
 } from "@/types";
-import { USE_CASE_PRESETS } from "@/lib/constants/defaults";
+import { USE_CASE_PRESETS, isMainModelEligible, getRecommendedAuxiliary } from "@/lib/constants/defaults";
 import { ModelPriceInfo } from "@/components/ModelPriceInfo";
 
 // ============================================================
@@ -53,7 +53,7 @@ const useCaseTypes: UseCaseType[] = [
   "generalAssistant",
 ];
 
-const textLengthPresets: TextLengthPreset[] = ["short", "medium", "long"];
+const textLengthPresets: TextLengthPreset[] = ["short", "medium", "long", "custom"];
 
 const simpleModeSchema = z.object({
   modelId: z.string().min(1, "使用モデルを選択してください"),
@@ -64,16 +64,29 @@ const simpleModeSchema = z.object({
       message: "1以上の数値を入力してください",
     }),
   inputLengthPreset: z.enum(
-    ["short", "medium", "long"] as [TextLengthPreset, ...TextLengthPreset[]],
+    ["short", "medium", "long", "custom"] as [TextLengthPreset, ...TextLengthPreset[]],
     { message: "ユーザー入力文字数を選択してください" }
   ),
+  customInputChars: z.string().optional(),
   outputLengthPreset: z.enum(
-    ["short", "medium", "long"] as [TextLengthPreset, ...TextLengthPreset[]],
+    ["short", "medium", "long", "custom"] as [TextLengthPreset, ...TextLengthPreset[]],
     { message: "出力文字数を選択してください" }
   ),
+  customOutputChars: z.string().optional(),
   useCaseType: z.enum(useCaseTypes as [UseCaseType, ...UseCaseType[]], {
     message: "用途タイプを選択してください",
   }),
+}).superRefine((data, ctx) => {
+  if (data.inputLengthPreset === "custom") {
+    if (!data.customInputChars || Number(data.customInputChars) <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "入力文字数を1以上で入力してください", path: ["customInputChars"] });
+    }
+  }
+  if (data.outputLengthPreset === "custom") {
+    if (!data.customOutputChars || Number(data.customOutputChars) <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "出力文字数を1以上で入力してください", path: ["customOutputChars"] });
+    }
+  }
 });
 
 type SimpleModeFormValues = z.infer<typeof simpleModeSchema>;
@@ -93,12 +106,14 @@ const INPUT_LENGTH_LABELS: Record<TextLengthPreset, string> = {
   short: "短文（〜200文字）",
   medium: "中文（〜1,000文字）",
   long: "長文（〜3,000文字）",
+  custom: "カスタム（手入力）",
 };
 
 const OUTPUT_LENGTH_LABELS: Record<TextLengthPreset, string> = {
   short: "短文（〜500文字）",
   medium: "中文（〜1,500文字）",
   long: "長文（〜3,000文字）",
+  custom: "カスタム（手入力）",
 };
 
 // ============================================================
@@ -122,13 +137,17 @@ export function SimpleMode({
       modelId: "",
       dailyRequests: "",
       inputLengthPreset: "medium",
+      customInputChars: "",
       outputLengthPreset: "medium",
+      customOutputChars: "",
       useCaseType: "simpleQA",
     },
   });
 
   const selectedUseCase = watch("useCaseType");
   const selectedModelId = watch("modelId");
+  const watchedInputPreset = watch("inputLengthPreset");
+  const watchedOutputPreset = watch("outputLengthPreset");
   const selectedModel = selectedModelId
     ? models.find((m) => m.id === Number(selectedModelId)) ?? null
     : null;
@@ -139,18 +158,28 @@ export function SimpleMode({
       dailyRequests: Number(data.dailyRequests),
       inputLengthPreset: data.inputLengthPreset,
       outputLengthPreset: data.outputLengthPreset,
+      customInputChars: data.inputLengthPreset === "custom" ? Number(data.customInputChars) : null,
+      customOutputChars: data.outputLengthPreset === "custom" ? Number(data.customOutputChars) : null,
       useCaseType: data.useCaseType,
     };
     onCalculate(input);
   };
 
+  // lightweight モデルを除外（メインモデルとして不適格）
+  const eligibleModels = models.filter((m) => isMainModelEligible(m));
+
   // Group models by provider
-  const modelsByProvider = models.reduce<Record<string, Model[]>>((acc, m) => {
+  const modelsByProvider = eligibleModels.reduce<Record<string, Model[]>>((acc, m) => {
     const key = m.providerName;
     if (!acc[key]) acc[key] = [];
     acc[key].push(m);
     return acc;
   }, {});
+
+  // 選択中モデルの推奨補助モデルを解決
+  const recommendedAuxiliary = selectedModel
+    ? getRecommendedAuxiliary(selectedModel, models)
+    : null;
 
   const preset = selectedUseCase ? USE_CASE_PRESETS[selectedUseCase] : null;
 
@@ -220,6 +249,24 @@ export function SimpleMode({
               </p>
             )}
             <ModelPriceInfo model={selectedModel} />
+            {recommendedAuxiliary && (
+              <div
+                className="mt-2 rounded-md border border-muted bg-muted/30 px-3 py-2"
+                role="status"
+                aria-live="polite"
+              >
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">補助モデル: </span>
+                  {recommendedAuxiliary.name}
+                  <span className="ml-2 text-xs">
+                    (${recommendedAuxiliary.inputPrice}/1M入力, ${recommendedAuxiliary.outputPrice}/1M出力)
+                  </span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  分類・ルーティング・要約等の補助タスクに自動適用されます
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 2. Daily requests */}
@@ -296,6 +343,28 @@ export function SimpleMode({
                 {errors.inputLengthPreset.message}
               </p>
             )}
+            {watchedInputPreset === "custom" && (
+              <div className="mt-2">
+                <Controller
+                  name="customInputChars"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="入力文字数を入力（例: 800）"
+                      aria-label="カスタム入力文字数"
+                      {...field}
+                    />
+                  )}
+                />
+                {errors.customInputChars && (
+                  <p className="text-sm text-destructive mt-1" role="alert">
+                    {errors.customInputChars.message}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 4. Output character count */}
@@ -338,6 +407,28 @@ export function SimpleMode({
               <p className="text-sm text-destructive" role="alert">
                 {errors.outputLengthPreset.message}
               </p>
+            )}
+            {watchedOutputPreset === "custom" && (
+              <div className="mt-2">
+                <Controller
+                  name="customOutputChars"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="出力文字数を入力（例: 1200）"
+                      aria-label="カスタム出力文字数"
+                      {...field}
+                    />
+                  )}
+                />
+                {errors.customOutputChars && (
+                  <p className="text-sm text-destructive mt-1" role="alert">
+                    {errors.customOutputChars.message}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 

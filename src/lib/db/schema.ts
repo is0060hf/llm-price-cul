@@ -37,6 +37,13 @@ export const models = pgTable("models", {
   cacheReadPricePerMTokens: real("cache_read_price_per_m_tokens"), // nullable: Cache Read / Cached Input
   maxContextLength: integer("max_context_length"), // nullable: トークン数上限
   isLegacy: boolean("is_legacy").default(false).notNull(),
+  // ベンチマークスコア (nullable: 未取得のモデルはnull)
+  benchmarkGpqa: real("benchmark_gpqa"), // GPQA Diamond (科学推論, 0-100)
+  benchmarkSweBench: real("benchmark_swe_bench"), // SWE-bench Verified (コーディング, 0-100)
+  benchmarkAime: real("benchmark_aime"), // AIME 2025 (数学, 0-100)
+  benchmarkArcAgi: real("benchmark_arc_agi"), // ARC-AGI 2 (抽象推論, 0-100)
+  benchmarkMmmu: real("benchmark_mmmu"), // MMMU Pro (マルチモーダル, 0-100)
+  benchmarkOverall: real("benchmark_overall"), // 総合スコア (10点満点)
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

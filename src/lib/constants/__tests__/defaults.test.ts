@@ -22,7 +22,7 @@ describe("TOKEN_CONVERSION_RATES", () => {
 });
 
 describe("SIMPLE_MODE_DEFAULTS", () => {
-  it("全14項目が定義されている", () => {
+  it("全15項目が定義されている", () => {
     expect(SIMPLE_MODE_DEFAULTS.language).toBe("ja");
     expect(SIMPLE_MODE_DEFAULTS.monthlyWorkingDays).toBe(20);
     expect(SIMPLE_MODE_DEFAULTS.systemPromptChars).toBe(2000);
@@ -31,7 +31,8 @@ describe("SIMPLE_MODE_DEFAULTS", () => {
     expect(SIMPLE_MODE_DEFAULTS.searchChunkSize).toBe(500);
     expect(SIMPLE_MODE_DEFAULTS.reembeddingMonthlyChars).toBe(0);
     expect(SIMPLE_MODE_DEFAULTS.maxHistoryTurns).toBe(10);
-    expect(SIMPLE_MODE_DEFAULTS.historyCompression).toBe(false);
+    expect(SIMPLE_MODE_DEFAULTS.historyCompression).toBe(true);
+    expect(SIMPLE_MODE_DEFAULTS.compressionFrequency).toBe(5);
     expect(SIMPLE_MODE_DEFAULTS.webSearchResultCount).toBe(3);
     expect(SIMPLE_MODE_DEFAULTS.classificationFallbackRate).toBe(20);
     expect(SIMPLE_MODE_DEFAULTS.subAgentMaxCalls).toBe(2);

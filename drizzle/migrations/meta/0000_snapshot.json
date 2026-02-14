@@ -1,0 +1,332 @@
+{
+  "id": "3a9eda21-1bcd-4497-b604-63e7389794e2",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.embedding_models": {
+      "name": "embedding_models",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "input_price_per_m_tokens": {
+          "name": "input_price_per_m_tokens",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dimensions": {
+          "name": "dimensions",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pricing_tier": {
+          "name": "pricing_tier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'online'"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "embedding_models_provider_id_providers_id_fk": {
+          "name": "embedding_models_provider_id_providers_id_fk",
+          "tableFrom": "embedding_models",
+          "tableTo": "providers",
+          "columnsFrom": [
+            "provider_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.models": {
+      "name": "models",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "input_price_per_m_tokens": {
+          "name": "input_price_per_m_tokens",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "output_price_per_m_tokens": {
+          "name": "output_price_per_m_tokens",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cache_write_price_per_m_tokens": {
+          "name": "cache_write_price_per_m_tokens",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cache_read_price_per_m_tokens": {
+          "name": "cache_read_price_per_m_tokens",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_context_length": {
+          "name": "max_context_length",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_legacy": {
+          "name": "is_legacy",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "benchmark_gpqa": {
+          "name": "benchmark_gpqa",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "benchmark_swe_bench": {
+          "name": "benchmark_swe_bench",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "benchmark_aime": {
+          "name": "benchmark_aime",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "benchmark_arc_agi": {
+          "name": "benchmark_arc_agi",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "benchmark_mmmu": {
+          "name": "benchmark_mmmu",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "benchmark_overall": {
+          "name": "benchmark_overall",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "models_provider_id_providers_id_fk": {
+          "name": "models_provider_id_providers_id_fk",
+          "tableFrom": "models",
+          "tableTo": "providers",
+          "columnsFrom": [
+            "provider_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.providers": {
+      "name": "providers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "providers_name_unique": {
+          "name": "providers_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.web_search_tools": {
+      "name": "web_search_tools",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_per_1k_calls": {
+          "name": "price_per_1k_calls",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "additional_pricing_notes": {
+          "name": "additional_pricing_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "web_search_tools_provider_id_providers_id_fk": {
+          "name": "web_search_tools_provider_id_providers_id_fk",
+          "tableFrom": "web_search_tools",
+          "tableTo": "providers",
+          "columnsFrom": [
+            "provider_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

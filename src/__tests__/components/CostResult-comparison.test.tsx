@@ -4,19 +4,6 @@ import { describe, it, expect, vi } from "vitest";
 import { CostResult } from "@/components/CostResult";
 import type { CostResult as CostResultType } from "@/types";
 
-// recharts の ResponsiveContainer はテスト環境で幅0になるためモックする
-vi.mock("recharts", async () => {
-  const actual = await vi.importActual<typeof import("recharts")>("recharts");
-  return {
-    ...actual,
-    ResponsiveContainer: ({
-      children,
-    }: {
-      children: React.ReactNode;
-    }) => <div style={{ width: 400, height: 300 }}>{children}</div>,
-  };
-});
-
 const mockResult: CostResultType = {
   costPerRequest: 0.01,
   totalInputTokens: 1000,
@@ -24,6 +11,8 @@ const mockResult: CostResultType = {
   steps: [
     {
       name: "メインエージェント応答",
+      modelName: "GPT-4.1",
+      description: "システムプロンプト+ユーザー入力を統合して応答を生成",
       inputTokens: 1000,
       outputTokens: 500,
       costUsd: 0.01,
@@ -38,6 +27,7 @@ const mockResult: CostResultType = {
   exchangeRate: 150,
   assumptions: {
     modelName: "GPT-4.1",
+    auxiliaryModelName: null,
     providerName: "OpenAI",
     dailyRequests: 100,
     monthlyWorkingDays: 20,
@@ -52,6 +42,8 @@ const mockResult: CostResultType = {
     enabledOptions: [],
     optionDetails: {},
   },
+  monthlyCostJpy: 0,
+  annualCostJpy: 0,
 };
 
 describe("CostResult - 比較表追加機能", () => {

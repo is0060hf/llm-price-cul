@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
 import type { CostResult, Assumptions } from "@/types";
-import { STEP_BUSINESS_VALUES } from "@/lib/constants/defaults";
 import {
   Card,
   CardContent,
@@ -21,15 +12,15 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, Check, ArrowDown } from "lucide-react";
 
-const CHART_COLORS = [
-  "#2563eb",
-  "#7c3aed",
-  "#db2777",
-  "#ea580c",
-  "#65a30d",
-  "#0891b2",
-  "#4f46e5",
-  "#be185d",
+const BAR_COLORS = [
+  "bg-blue-600",
+  "bg-violet-600",
+  "bg-pink-600",
+  "bg-orange-600",
+  "bg-lime-600",
+  "bg-cyan-600",
+  "bg-indigo-600",
+  "bg-rose-600",
 ];
 
 type CostResultProps = {
@@ -93,11 +84,10 @@ export function CostResult({ result, currency, exchangeRate, onAddToComparison, 
       ? result.monthlyCostUsd / result.costPerRequest
       : 0;
 
-  const chartData = result.steps.map((step, i) => ({
-    name: step.name,
-    value: step.costUsd * monthlyMultiplier,
-    fill: CHART_COLORS[i % CHART_COLORS.length],
-  }));
+  const totalMonthlyCostFromSteps = result.steps.reduce(
+    (sum, s) => sum + s.costUsd * monthlyMultiplier,
+    0
+  );
 
   return (
     <div className="space-y-6">
@@ -155,8 +145,12 @@ export function CostResult({ result, currency, exchangeRate, onAddToComparison, 
         <CardContent>
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
             <div>
-              <p className="text-xs text-muted-foreground">モデル</p>
+              <p className="text-xs text-muted-foreground">メインモデル</p>
               <p className="font-medium">{result.assumptions.modelName}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">補助モデル</p>
+              <p className="font-medium">{result.assumptions.auxiliaryModelName ?? "（メインモデルと同一）"}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">プロバイダー</p>
@@ -329,94 +323,86 @@ export function CostResult({ result, currency, exchangeRate, onAddToComparison, 
         </CardContent>
       </Card>
 
-      {/* コスト内訳テーブル */}
+      {/* コスト内訳（カード型リスト + 水平バー） */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">コスト内訳（処理ステップ別・月額）</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[400px] text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="pb-3 text-left font-medium">処理ステップ</th>
-                  <th className="pb-3 text-right font-medium">インプットトークン<br /><span className="text-xs font-normal text-muted-foreground">(1リクエストあたり)</span></th>
-                  <th className="pb-3 text-right font-medium">アウトプットトークン<br /><span className="text-xs font-normal text-muted-foreground">(1リクエストあたり)</span></th>
-                  <th className="pb-3 text-right font-medium">月額コスト</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.steps.map((step) => (
-                  <tr key={step.name} className="border-b last:border-0">
-                    <td className="py-3">
-                      <div>{step.name}</div>
-                      {STEP_BUSINESS_VALUES[step.name] && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {STEP_BUSINESS_VALUES[step.name]}
-                        </p>
-                      )}
-                    </td>
-                    <td className="py-3 text-right tabular-nums">
-                      {step.inputTokens.toLocaleString("ja-JP")}
-                    </td>
-                    <td className="py-3 text-right tabular-nums">
-                      {step.outputTokens.toLocaleString("ja-JP")}
-                    </td>
-                    <td className="py-3 text-right tabular-nums">
-                      {formatCost(step.costUsd * monthlyMultiplier, currency, exchangeRate, 2)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-3">
+            {result.steps.map((step, i) => {
+              const stepMonthlyCost = step.costUsd * monthlyMultiplier;
+              const percent =
+                totalMonthlyCostFromSteps > 0
+                  ? (stepMonthlyCost / totalMonthlyCostFromSteps) * 100
+                  : 0;
+              const barColor = BAR_COLORS[i % BAR_COLORS.length];
+
+              return (
+                <div
+                  key={step.name}
+                  className="rounded-lg border p-4"
+                  role="listitem"
+                >
+                  {/* 1行目: ステップ名（左）+ コスト + 割合（右） */}
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium text-sm">{step.name}</p>
+                    <div className="flex items-baseline gap-2 shrink-0">
+                      <span className="font-semibold text-sm tabular-nums">
+                        {formatCost(stepMonthlyCost, currency, exchangeRate, 2)}
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {percent.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 2行目: 水平比率バー */}
+                  <div
+                    className="mt-2 h-2 w-full rounded-full bg-muted overflow-hidden"
+                    role="progressbar"
+                    aria-valuenow={Math.round(percent)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`${step.name}のコスト割合: ${percent.toFixed(1)}%`}
+                  >
+                    <div
+                      className={`h-full rounded-full transition-all ${barColor}`}
+                      style={{ width: `${Math.max(percent, 0.5)}%` }}
+                    />
+                  </div>
+
+                  {/* 3行目: 処理内容の説明（メイン情報） */}
+                  {step.description && (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {step.description}
+                    </p>
+                  )}
+
+                  {/* 4行目: モデル名 + トークン数（補助情報） */}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {step.modelName && (
+                      <span>
+                        モデル: <span className="font-medium">{step.modelName}</span>
+                      </span>
+                    )}
+                    {(step.inputTokens > 0 || step.outputTokens > 0) && (
+                      <span className="tabular-nums">
+                        入力 {step.inputTokens.toLocaleString("ja-JP")} tokens
+                        {" / "}
+                        出力 {step.outputTokens.toLocaleString("ja-JP")} tokens
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
+          <p className="mt-4 text-xs text-muted-foreground">
             1リクエストあたり合計: {formatUsd(result.costPerRequest, 6)}
           </p>
         </CardContent>
       </Card>
-
-      {/* コスト内訳チャート */}
-      {result.steps.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">コスト内訳グラフ（月額）</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] w-full min-w-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label={({ name, percent }) =>
-                      `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`
-                    }
-                  >
-                    {chartData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={chartData[index].fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number | undefined) =>
-                      formatCost(value ?? 0, currency, exchangeRate, 2)
-                    }
-                    contentStyle={{
-                      borderRadius: "8px",
-                      border: "1px solid hsl(var(--border))",
-                    }}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

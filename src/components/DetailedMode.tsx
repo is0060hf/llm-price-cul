@@ -29,6 +29,7 @@ import type {
   DetailedModeInput,
   Language,
 } from "@/types";
+import { getRecommendedAuxiliary } from "@/lib/constants/defaults";
 
 // ============================================================
 // Props
@@ -53,7 +54,8 @@ const currencies = ["USD", "JPY"] as const;
 const detailedModeSchema = z
   .object({
     // 基本設定
-    mainModelId: z.string().min(1, "使用モデルを選択してください"),
+    mainModelId: z.string().min(1, "メインモデルを選択してください"),
+    auxiliaryModelId: z.string(),
     dailyRequests: z
       .string()
       .min(1, "1日あたりの最大リクエスト数を入力してください")
@@ -266,6 +268,7 @@ export function DetailedMode({
     resolver: zodResolver(detailedModeSchema),
     defaultValues: {
       mainModelId: "",
+      auxiliaryModelId: "",
       dailyRequests: "100",
       monthlyWorkingDays: "20",
       maxInputChars: "1000",
@@ -311,9 +314,23 @@ export function DetailedMode({
   });
 
   const watchedMainModelId = watch("mainModelId");
+  const watchedAuxiliaryModelId = watch("auxiliaryModelId");
   const selectedModel = watchedMainModelId
     ? models.find((m) => m.id === Number(watchedMainModelId)) ?? null
     : null;
+  const selectedAuxModel = watchedAuxiliaryModelId
+    ? models.find((m) => m.id === Number(watchedAuxiliaryModelId)) ?? null
+    : null;
+
+  // メインモデル変更時に推奨補助モデルを自動設定
+  useEffect(() => {
+    if (selectedModel) {
+      const recommended = getRecommendedAuxiliary(selectedModel, models);
+      if (recommended) {
+        setValue("auxiliaryModelId", String(recommended.id));
+      }
+    }
+  }, [watchedMainModelId, selectedModel, models, setValue]);
 
   const watched = {
     topicClassification: watch("topicClassification"),
@@ -339,6 +356,7 @@ export function DetailedMode({
   const onSubmit = (data: DetailedModeFormValues) => {
     const input: DetailedModeInput = {
       mainModelId: Number(data.mainModelId),
+      auxiliaryModelId: data.auxiliaryModelId ? Number(data.auxiliaryModelId) : null,
       dailyRequests: Number(data.dailyRequests),
       monthlyWorkingDays: Number(data.monthlyWorkingDays),
       maxInputChars: Number(data.maxInputChars),
@@ -420,7 +438,7 @@ export function DetailedMode({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="main-model">使用モデル</Label>
+            <Label htmlFor="main-model">メインモデル</Label>
             <Controller
               name="mainModelId"
               control={control}
@@ -465,6 +483,50 @@ export function DetailedMode({
               </p>
             )}
             <ModelPriceInfo model={selectedModel} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="auxiliary-model">補助モデル</Label>
+            <p className="text-xs text-muted-foreground">
+              分類・ルーティング・要約・圧縮等の補助タスクに使用するモデル
+            </p>
+            <Controller
+              name="auxiliaryModelId"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={field.value}
+                  onValueChange={field.onChange}
+                >
+                  <SelectTrigger
+                    id="auxiliary-model"
+                    className="w-full min-w-0"
+                    aria-label="補助モデルを選択"
+                  >
+                    <SelectValue placeholder="補助モデルを選択してください" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(modelsByProvider).map(
+                      ([providerName, providerModels]) => (
+                        <SelectGroup key={providerName}>
+                          <SelectLabel>{providerName}</SelectLabel>
+                          {providerModels.map((model) => (
+                            <SelectItem
+                              key={model.id}
+                              value={String(model.id)}
+                              aria-label={`${providerName} ${model.name}`}
+                            >
+                              {model.name}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <ModelPriceInfo model={selectedAuxModel} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

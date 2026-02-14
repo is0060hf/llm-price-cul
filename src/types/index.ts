@@ -21,6 +21,13 @@ export type Model = {
   cacheReadPrice: number | null; // Cache Read / Cached Input
   maxContextLength: number | null;
   isLegacy: boolean;
+  // ベンチマークスコア
+  benchmarkGpqa: number | null; // GPQA Diamond (科学推論, 0-100)
+  benchmarkSweBench: number | null; // SWE-bench Verified (コーディング, 0-100)
+  benchmarkAime: number | null; // AIME 2025 (数学, 0-100)
+  benchmarkArcAgi: number | null; // ARC-AGI 2 (抽象推論, 0-100)
+  benchmarkMmmu: number | null; // MMMU Pro (マルチモーダル, 0-100)
+  benchmarkOverall: number | null; // 総合スコア (10点満点)
 };
 
 export type PricingTier = "online" | "batch";
@@ -67,13 +74,15 @@ export type UseCaseType =
   | "customerSupport"
   | "generalAssistant";
 
-export type TextLengthPreset = "short" | "medium" | "long";
+export type TextLengthPreset = "short" | "medium" | "long" | "custom";
 
 export type SimpleModeInput = {
   modelId: number;
   dailyRequests: number;
   inputLengthPreset: TextLengthPreset;
   outputLengthPreset: TextLengthPreset;
+  customInputChars: number | null; // preset が "custom" の場合に使用
+  customOutputChars: number | null; // preset が "custom" の場合に使用
   useCaseType: UseCaseType;
 };
 
@@ -84,6 +93,7 @@ export type SimpleModeInput = {
 export type DetailedModeInput = {
   // 基本設定 (3.1: #1〜#8)
   mainModelId: number;
+  auxiliaryModelId: number | null; // 補助モデル（null時はメインモデルにフォールバック）
   dailyRequests: number;
   monthlyWorkingDays: number;
   maxInputChars: number;
@@ -138,6 +148,8 @@ export type DetailedModeInput = {
 
 export type StepCost = {
   name: string;
+  modelName: string; // このステップで使用されるモデル名
+  description: string; // 処理内容の説明（パラメータ込み）
   inputTokens: number;
   outputTokens: number;
   costUsd: number;
@@ -145,6 +157,7 @@ export type StepCost = {
 
 export type Assumptions = {
   modelName: string;
+  auxiliaryModelName: string | null; // 補助モデル名
   providerName: string;
   dailyRequests: number;
   monthlyWorkingDays: number;

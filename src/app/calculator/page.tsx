@@ -18,10 +18,14 @@ import {
   convertSimpleToDetailed,
 } from "@/lib/calculation/cost-calculator";
 import {
+  getRecommendedAuxiliary,
+} from "@/lib/constants/defaults";
+import {
   loadComparisons,
   saveComparison,
   removeComparison,
   clearComparisons,
+  buildComparisonLabel,
 } from "@/lib/comparison-storage";
 import type {
   MasterData,
@@ -130,8 +134,11 @@ export default function CalculatorPage() {
         enabledOptions.push("Prompt Caching");
       }
 
+      const auxModel = input.auxiliaryModelId ? findModel(input.auxiliaryModelId) : null;
+
       return {
         modelName: mainModel.name,
+        auxiliaryModelName: auxModel?.name ?? null,
         providerName: mainModel.providerName,
         dailyRequests: input.dailyRequests,
         monthlyWorkingDays: input.monthlyWorkingDays,
@@ -147,17 +154,22 @@ export default function CalculatorPage() {
         optionDetails,
       };
     },
-    []
+    [findModel]
   );
 
   const handleSimpleCalculate = useCallback(
     (input: SimpleModeInput) => {
       if (!masterData) return;
-      const detailed = convertSimpleToDetailed(input);
+      const mainModel = findModel(input.modelId);
+      if (!mainModel) return;
+
+      // 補助モデルをペアリング表から自動解決
+      const auxModel = getRecommendedAuxiliary(mainModel, masterData.models);
+      const detailed = convertSimpleToDetailed(input, auxModel?.id ?? null);
       handleDetailedCalculate(detailed);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [masterData]
+    [masterData, findModel]
   );
 
   const handleDetailedCalculate = useCallback(
@@ -166,6 +178,25 @@ export default function CalculatorPage() {
 
       const mainModel = findModel(input.mainModelId);
       if (!mainModel) return;
+
+      // 補助モデル: 明示指定 → ペアリング自動解決 → メインモデルにフォールバック
+      const auxiliaryModel = input.auxiliaryModelId
+        ? findModel(input.auxiliaryModelId)
+        : getRecommendedAuxiliary(mainModel, masterData.models);
+      const auxOrMain = auxiliaryModel ?? mainModel;
+
+      // 各ステップのモデル解決:
+      // - 明示的にIDが設定されている → そのモデル
+      // - null → サブエージェントはメインモデル、その他は補助モデル
+      const resolveStepModel = (
+        modelId: number | null,
+        defaultModel: Model
+      ): Model => {
+        if (modelId) {
+          return findModel(modelId) ?? defaultModel;
+        }
+        return defaultModel;
+      };
 
       const requestResult = calcRequestCost({
         mainModel,
@@ -177,44 +208,32 @@ export default function CalculatorPage() {
 
         topicClassification: input.topicClassification,
         classificationFallbackRate: input.classificationFallbackRate,
-        classificationModel: input.classificationModelId
-          ? findModel(input.classificationModelId)
-          : mainModel,
+        classificationModel: resolveStepModel(input.classificationModelId, auxOrMain),
         orchestrator: input.orchestrator,
-        orchestratorModel: input.orchestratorModelId
-          ? findModel(input.orchestratorModelId)
-          : mainModel,
+        orchestratorModel: resolveStepModel(input.orchestratorModelId, auxOrMain),
         subAgentMaxCalls: input.subAgentMaxCalls,
-        subAgentModel: input.subAgentModelId
-          ? findModel(input.subAgentModelId)
-          : mainModel,
+        subAgentModel: resolveStepModel(input.subAgentModelId, mainModel),
 
         semanticSearchEnabled: input.semanticSearchEnabled,
         searchChunkCount: input.searchChunkCount,
         searchChunkSize: input.searchChunkSize,
         embeddingModel: findEmbedding(input.embeddingModelId),
         rerankingEnabled: input.rerankingEnabled,
-        rerankingModel: input.rerankingModelId
-          ? findModel(input.rerankingModelId)
-          : mainModel,
+        rerankingModel: resolveStepModel(input.rerankingModelId, auxOrMain),
         reembeddingMonthlyChars: input.reembeddingMonthlyChars,
 
         conversationHistory: input.conversationHistory,
         maxHistoryTurns: input.maxHistoryTurns,
         historyCompression: input.historyCompression,
         compressionFrequency: input.compressionFrequency,
-        compressionModel: input.compressionModelId
-          ? findModel(input.compressionModelId)
-          : mainModel,
+        compressionModel: resolveStepModel(input.compressionModelId, auxOrMain),
 
         webSearch: input.webSearch,
         webSearchTool: findWebSearch(input.webSearchToolId),
         webSearchCallsPerRequest: input.webSearchCallsPerRequest,
         webSearchResultCount: input.webSearchResultCount,
         webSearchSummarization: input.webSearchSummarization,
-        summarizationModel: input.summarizationModelId
-          ? findModel(input.summarizationModelId)
-          : mainModel,
+        summarizationModel: resolveStepModel(input.summarizationModelId, auxOrMain),
 
         promptCaching: input.promptCaching,
       });
@@ -251,7 +270,7 @@ export default function CalculatorPage() {
   );
 
   const comparisonLabel = result
-    ? `${result.assumptions.modelName} - ${result.assumptions.enabledOptions.length > 0 ? result.assumptions.enabledOptions.join("+") : "基本構成"}`
+    ? buildComparisonLabel(result.assumptions)
     : "";
 
   const isAlreadyInComparison = comparisons.some(
@@ -382,6 +401,7 @@ export default function CalculatorPage() {
       <div ref={comparisonRef} id="comparison-table" />
       <ComparisonTable
         entries={comparisons}
+        models={masterData.models}
         onRemove={handleRemoveComparison}
         onClearAll={handleClearComparisons}
         currency={currency}

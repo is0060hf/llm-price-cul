@@ -4,6 +4,7 @@ import {
   saveComparison,
   removeComparison,
   clearComparisons,
+  buildComparisonLabel,
 } from "../comparison-storage";
 import type { ComparisonEntry, CostResult, Assumptions } from "@/types";
 
@@ -22,6 +23,7 @@ Object.defineProperty(globalThis, "localStorage", { value: localStorageMock });
 
 const mockAssumptions: Assumptions = {
   modelName: "GPT-4.1",
+  auxiliaryModelName: "GPT-4.1 nano",
   providerName: "OpenAI",
   dailyRequests: 100,
   monthlyWorkingDays: 20,
@@ -39,7 +41,7 @@ const mockAssumptions: Assumptions = {
 
 const mockResult: CostResult = {
   costPerRequest: 0.027,
-  steps: [{ name: "メインエージェント応答", inputTokens: 4500, outputTokens: 2250, costUsd: 0.027 }],
+  steps: [{ name: "メインエージェント応答", modelName: "GPT-4.1", description: "応答生成", inputTokens: 4500, outputTokens: 2250, costUsd: 0.027 }],
   dailyCostUsd: 2.70,
   monthlyCostUsd: 64.80,
   monthlyCostBeforeMargin: 54.0,
@@ -96,5 +98,60 @@ describe("comparison-storage", () => {
     saveComparison("B", mockResult);
     clearComparisons();
     expect(loadComparisons()).toEqual([]);
+  });
+});
+
+describe("buildComparisonLabel", () => {
+  it("モデル名・リクエスト数・文字数・オプションを含むラベルが生成される", () => {
+    const label = buildComparisonLabel(mockAssumptions);
+    expect(label).toContain("GPT-4.1");
+    expect(label).toContain("100");
+    expect(label).toContain("1,000");
+    expect(label).toContain("1,500");
+  });
+
+  it("オプションありの場合はオプション名が含まれる", () => {
+    const assumptions: Assumptions = {
+      ...mockAssumptions,
+      enabledOptions: ["意味検索", "会話履歴参照"],
+    };
+    const label = buildComparisonLabel(assumptions);
+    expect(label).toContain("意味検索");
+    expect(label).toContain("会話履歴参照");
+  });
+
+  it("オプションなしの場合は基本構成と表示される", () => {
+    const label = buildComparisonLabel(mockAssumptions);
+    expect(label).toContain("基本構成");
+  });
+
+  it("入力文字数が異なると異なるラベルが生成される", () => {
+    const label1 = buildComparisonLabel(mockAssumptions);
+    const label2 = buildComparisonLabel({ ...mockAssumptions, maxInputChars: 3000 });
+    expect(label1).not.toBe(label2);
+  });
+
+  it("出力文字数が異なると異なるラベルが生成される", () => {
+    const label1 = buildComparisonLabel(mockAssumptions);
+    const label2 = buildComparisonLabel({ ...mockAssumptions, maxOutputChars: 3000 });
+    expect(label1).not.toBe(label2);
+  });
+
+  it("リクエスト数が異なると異なるラベルが生成される", () => {
+    const label1 = buildComparisonLabel(mockAssumptions);
+    const label2 = buildComparisonLabel({ ...mockAssumptions, dailyRequests: 500 });
+    expect(label1).not.toBe(label2);
+  });
+
+  it("モデルが異なると異なるラベルが生成される", () => {
+    const label1 = buildComparisonLabel(mockAssumptions);
+    const label2 = buildComparisonLabel({ ...mockAssumptions, modelName: "Claude Sonnet 4.5" });
+    expect(label1).not.toBe(label2);
+  });
+
+  it("オプション構成が異なると異なるラベルが生成される", () => {
+    const label1 = buildComparisonLabel({ ...mockAssumptions, enabledOptions: ["意味検索"] });
+    const label2 = buildComparisonLabel({ ...mockAssumptions, enabledOptions: ["意味検索", "Web参照"] });
+    expect(label1).not.toBe(label2);
   });
 });

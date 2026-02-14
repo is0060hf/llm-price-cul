@@ -4,6 +4,7 @@ import type {
   UseCasePreset,
   TextLengthPreset,
   EstimationLevel,
+  Model,
 } from "@/types";
 
 // ============================================================
@@ -29,7 +30,8 @@ export const SIMPLE_MODE_DEFAULTS = {
   searchChunkSize: 500,
   reembeddingMonthlyChars: 0,
   maxHistoryTurns: 10,
-  historyCompression: false,
+  historyCompression: true,
+  compressionFrequency: 5, // 5ターンごとに圧縮（一般的な運用範囲）
   webSearchResultCount: 3,
   classificationFallbackRate: 20, // %
   subAgentMaxCalls: 2,
@@ -77,13 +79,13 @@ export const USE_CASE_PRESETS: Record<UseCaseType, UseCasePreset> = {
 // 入力文字数プリセット (参照: requirement.md セクション 2.1 #3, #4)
 // ============================================================
 
-export const INPUT_LENGTH_PRESETS: Record<TextLengthPreset, number> = {
+export const INPUT_LENGTH_PRESETS: Record<Exclude<TextLengthPreset, "custom">, number> = {
   short: 200,
   medium: 1000,
   long: 3000,
 };
 
-export const OUTPUT_LENGTH_PRESETS: Record<TextLengthPreset, number> = {
+export const OUTPUT_LENGTH_PRESETS: Record<Exclude<TextLengthPreset, "custom">, number> = {
   short: 500,
   medium: 1500,
   long: 3000,
@@ -265,6 +267,56 @@ export const ALL_ESTIMATION_MAPPINGS = {
   e3MultiStepReasoning: ESTIMATION_E3_MULTI_STEP_REASONING,
   e4ExceptionHandling: ESTIMATION_E4_EXCEPTION_HANDLING,
 } as const;
+
+// ============================================================
+// メインモデル ⇔ 補助モデル ペアリング定義
+// (ベンチマーク評価に基づく推奨組み合わせ)
+// キー: メインモデル名, 値: 推奨補助モデル名 (同プロバイダ)
+// ============================================================
+
+export const MODEL_PAIRINGS: Record<string, string> = {
+  // OpenAI
+  "GPT-5.2": "GPT-4.1 mini",
+  "GPT-5.2 pro": "GPT-5 mini",
+  "GPT-5 mini": "GPT-4.1 nano",
+  "GPT-4.1": "GPT-4.1 nano",
+  "GPT-4.1 mini": "GPT-4.1 nano",
+  "GPT-4o": "GPT-4o-mini",
+  "o4-mini": "GPT-4.1 nano",
+  "o3-mini": "GPT-4.1 nano",
+  // Anthropic
+  "Claude Opus 4.6": "Claude Haiku 4.5",
+  "Claude Sonnet 4.5": "Claude Haiku 4.5",
+  // Google
+  "Gemini 3 Pro Preview": "Gemini 3 Flash Preview",
+  "Gemini 3 Flash Preview": "Gemini 2.5 Flash Lite",
+  "Gemini 2.5 Pro": "Gemini 2.5 Flash",
+  "Gemini 2.5 Flash": "Gemini 2.5 Flash Lite",
+  "Gemini 2.0 Flash": "Gemini 2.0 Flash Lite",
+};
+
+/**
+ * メインモデルに対する推奨補助モデルを解決する。
+ * ペアリング表に該当があり、かつ非レガシーのモデルが allModels に存在する場合に返す。
+ */
+export function getRecommendedAuxiliary(
+  mainModel: Model,
+  allModels: Model[]
+): Model | null {
+  const auxiliaryName = MODEL_PAIRINGS[mainModel.name];
+  if (!auxiliaryName) return null;
+  return (
+    allModels.find((m) => m.name === auxiliaryName && !m.isLegacy) ?? null
+  );
+}
+
+/**
+ * ざっくりモードのメインモデルとして適格かを判定する。
+ * ペアリング表にキーとして存在するモデル = 有意な補助モデルが存在する = メインモデル適格
+ */
+export function isMainModelEligible(model: Model): boolean {
+  return MODEL_PAIRINGS[model.name] !== undefined;
+}
 
 // ============================================================
 // 処理ステップのビジネス価値説明
