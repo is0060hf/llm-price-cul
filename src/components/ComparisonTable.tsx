@@ -1,6 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { ComparisonEntry, CostResult, Model } from "@/types";
 import {
   Card,
@@ -13,16 +28,69 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { GripVertical, Copy } from "lucide-react";
+import { toast } from "sonner";
+import { generateComparisonMarkdown } from "@/lib/comparison-export";
 
 type ComparisonTableProps = {
   entries: ComparisonEntry[];
   models: Model[];
   onRemove: (id: string) => void;
+  onReorder?: (fromId: string, toId: string) => void;
   onClearAll: () => void;
   currency: "USD" | "JPY";
   exchangeRate: number;
   onShowDetail?: (result: CostResult) => void;
 };
+
+// ドラッグ可能なヘッダーセル
+function SortableColumnHeader({
+  id,
+  index,
+  showHandle,
+}: {
+  id: string;
+  index: number;
+  showHandle: boolean;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <th
+      ref={setNodeRef}
+      style={style}
+      className="border-b px-3 py-2 text-center font-medium w-[300px]"
+    >
+      <div className="flex items-center justify-center gap-1">
+        {showHandle && (
+          <button
+            type="button"
+            className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+            aria-label={`案${index + 1}を並び替え`}
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        )}
+        <span className="font-bold">案{index + 1}</span>
+      </div>
+    </th>
+  );
+}
 
 function formatCost(
   valueUsd: number,
@@ -109,6 +177,7 @@ export function ComparisonTable({
   entries,
   models,
   onRemove,
+  onReorder,
   onClearAll,
   currency,
   exchangeRate,
@@ -116,10 +185,33 @@ export function ComparisonTable({
 }: ComparisonTableProps) {
   const [showBenchmarks, setShowBenchmarks] = useState(false);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
+
   if (entries.length === 0) return null;
 
   const findModelByName = (name: string): Model | undefined =>
     models.find((m) => m.name === name);
+
+  const showDragHandles = entries.length > 2 && !!onReorder;
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !onReorder) return;
+    onReorder(String(active.id), String(over.id));
+  }
+
+  async function handleCopyMarkdown() {
+    const md = generateComparisonMarkdown(entries, currency, exchangeRate);
+    try {
+      await navigator.clipboard.writeText(md);
+      toast.success("マークダウンをクリップボードにコピーしました");
+    } catch {
+      toast.error("コピーに失敗しました");
+    }
+  }
 
   const minMonthlyCostUsd =
     entries.length > 1
@@ -322,6 +414,10 @@ export function ComparisonTable({
                 モデルスペック
               </Label>
             </div>
+            <Button variant="outline" size="sm" onClick={handleCopyMarkdown}>
+              <Copy className="mr-1 h-4 w-4" aria-hidden="true" />
+              MDコピー
+            </Button>
             <Button variant="outline" size="sm" onClick={onClearAll}>
               すべてクリア
             </Button>
@@ -329,42 +425,53 @@ export function ComparisonTable({
         </CardAction>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto -mx-6 px-6">
-          <table className="table-fixed text-sm border-collapse" style={{ width: `calc(120px + ${entries.length} * 300px)` }}>
-            <thead>
-              <tr>
-                <th className="sticky left-0 z-10 bg-card border-b border-r px-3 py-2 text-left font-medium text-muted-foreground w-[120px]">
-                  {/* Row header column */}
-                </th>
-                {entries.map((entry, i) => (
-                  <th
-                    key={entry.id}
-                    className="border-b px-3 py-2 text-center font-medium w-[300px]"
-                  >
-                    <div className="font-bold">案{i + 1}</div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="overflow-x-auto -mx-6 px-6">
+            <table className="table-fixed text-sm border-collapse" style={{ width: `calc(120px + ${entries.length} * 300px)` }}>
+              <thead>
+                <tr>
+                  <th className="sticky left-0 z-10 bg-card border-b border-r px-3 py-2 text-left font-medium text-muted-foreground w-[120px]">
+                    {/* Row header column */}
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ROW_DEFINITIONS.filter((row) => !row.benchmarkRow || showBenchmarks).map(({ key, label }) => (
-                <tr key={key}>
-                  <td className="sticky left-0 z-10 bg-card border-b border-r px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap w-[120px]">
-                    {label}
-                  </td>
-                  {entries.map((entry, i) => (
-                    <td
-                      key={entry.id}
-                      className="border-b px-3 py-2 text-center align-top w-[300px]"
-                    >
-                      {renderCell(entry, key, i)}
-                    </td>
-                  ))}
+                  <SortableContext
+                    items={entries.map((e) => e.id)}
+                    strategy={horizontalListSortingStrategy}
+                  >
+                    {entries.map((entry, i) => (
+                      <SortableColumnHeader
+                        key={entry.id}
+                        id={entry.id}
+                        index={i}
+                        showHandle={showDragHandles}
+                      />
+                    ))}
+                  </SortableContext>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {ROW_DEFINITIONS.filter((row) => !row.benchmarkRow || showBenchmarks).map(({ key, label }) => (
+                  <tr key={key}>
+                    <td className="sticky left-0 z-10 bg-card border-b border-r px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap w-[120px]">
+                      {label}
+                    </td>
+                    {entries.map((entry, i) => (
+                      <td
+                        key={entry.id}
+                        className="border-b px-3 py-2 text-center align-top w-[300px]"
+                      >
+                        {renderCell(entry, key, i)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DndContext>
       </CardContent>
     </Card>
   );

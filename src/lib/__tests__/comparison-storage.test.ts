@@ -5,6 +5,7 @@ import {
   removeComparison,
   clearComparisons,
   buildComparisonLabel,
+  reorderComparisons,
 } from "../comparison-storage";
 import type { ComparisonEntry, CostResult, Assumptions } from "@/types";
 
@@ -153,5 +154,72 @@ describe("buildComparisonLabel", () => {
     const label1 = buildComparisonLabel({ ...mockAssumptions, enabledOptions: ["意味検索"] });
     const label2 = buildComparisonLabel({ ...mockAssumptions, enabledOptions: ["意味検索", "Web参照"] });
     expect(label1).not.toBe(label2);
+  });
+});
+
+describe("reorderComparisons", () => {
+  beforeEach(() => {
+    localStorageMock.clear();
+    vi.clearAllMocks();
+  });
+
+  it("2つのエントリの順序を入れ替えられる", () => {
+    saveComparison("A", mockResult);
+    saveComparison("B", { ...mockResult, monthlyCostUsd: 200 });
+    const before = loadComparisons();
+    const idA = before[0].id;
+    const idB = before[1].id;
+
+    const after = reorderComparisons(idA, idB);
+    expect(after).toHaveLength(2);
+    expect(after[0].id).toBe(idB);
+    expect(after[1].id).toBe(idA);
+  });
+
+  it("3つのエントリで先頭を末尾に移動できる", () => {
+    saveComparison("A", mockResult);
+    saveComparison("B", { ...mockResult, monthlyCostUsd: 200 });
+    saveComparison("C", { ...mockResult, monthlyCostUsd: 300 });
+    const before = loadComparisons();
+    const idA = before[0].id;
+    const idC = before[2].id;
+
+    const after = reorderComparisons(idA, idC);
+    expect(after[0].label).toBe("B");
+    expect(after[1].label).toBe("C");
+    expect(after[2].label).toBe("A");
+  });
+
+  it("同じIDを指定した場合は順序が変わらない", () => {
+    saveComparison("A", mockResult);
+    saveComparison("B", { ...mockResult, monthlyCostUsd: 200 });
+    const before = loadComparisons();
+    const idA = before[0].id;
+
+    const after = reorderComparisons(idA, idA);
+    expect(after[0].label).toBe("A");
+    expect(after[1].label).toBe("B");
+  });
+
+  it("存在しないIDを指定した場合は順序が変わらない", () => {
+    saveComparison("A", mockResult);
+    saveComparison("B", { ...mockResult, monthlyCostUsd: 200 });
+
+    const after = reorderComparisons("nonexistent", "also-nonexistent");
+    expect(after[0].label).toBe("A");
+    expect(after[1].label).toBe("B");
+  });
+
+  it("並び替え後にlocalStorageが更新される", () => {
+    saveComparison("A", mockResult);
+    saveComparison("B", { ...mockResult, monthlyCostUsd: 200 });
+    const before = loadComparisons();
+
+    reorderComparisons(before[0].id, before[1].id);
+
+    // localStorageから再読み込みしても順序が反映されている
+    const reloaded = loadComparisons();
+    expect(reloaded[0].label).toBe("B");
+    expect(reloaded[1].label).toBe("A");
   });
 });

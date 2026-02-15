@@ -26,6 +26,7 @@ import {
   removeComparison,
   clearComparisons,
   buildComparisonLabel,
+  reorderComparisons,
 } from "@/lib/comparison-storage";
 import type {
   MasterData,
@@ -311,6 +312,11 @@ export default function CalculatorPage() {
     setComparisons(loadComparisons());
   }, []);
 
+  const handleReorderComparison = useCallback((fromId: string, toId: string) => {
+    const reordered = reorderComparisons(fromId, toId);
+    setComparisons(reordered);
+  }, []);
+
   const handleClearComparisons = useCallback(() => {
     clearComparisons();
     setComparisons([]);
@@ -403,6 +409,7 @@ export default function CalculatorPage() {
         entries={comparisons}
         models={masterData.models}
         onRemove={handleRemoveComparison}
+        onReorder={handleReorderComparison}
         onClearAll={handleClearComparisons}
         currency={currency}
         exchangeRate={exchangeRate}
