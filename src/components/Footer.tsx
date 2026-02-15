@@ -5,9 +5,22 @@ export function Footer() {
     <footer className="border-t bg-muted/50" role="contentinfo">
       <div className="container mx-auto px-4 py-6 space-y-4">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm font-medium text-foreground">
-            © 2026 Prestimo
-          </p>
+          <div className="text-sm space-y-1">
+            <p className="font-medium text-foreground">
+              © 2026 Y.K.TaylorTokyo
+            </p>
+            <p className="text-muted-foreground">
+              運営:{" "}
+              <a
+                href="https://taylormode.co.jp/company/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-foreground transition-colors"
+              >
+                株式会社TaylorMode
+              </a>
+            </p>
+          </div>
           <nav aria-label="フッターナビゲーション">
             <ul className="flex gap-4 text-sm">
               <li>

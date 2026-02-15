@@ -42,7 +42,11 @@ export default function PrivacyPage() {
 
       <h2>お問い合わせ</h2>
       <p>
-        本プライバシーポリシーに関するお問い合わせは、サービス運営者までご連絡ください。
+        本プライバシーポリシーに関するお問い合わせは、株式会社TaylorMode（
+        <a href="https://taylormode.co.jp/" target="_blank" rel="noopener noreferrer">
+          https://taylormode.co.jp/
+        </a>
+        ）までご連絡ください。
       </p>
 
       <p className="text-sm text-muted-foreground mt-8">

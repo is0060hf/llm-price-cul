@@ -3,14 +3,22 @@ import { describe, it, expect } from "vitest";
 import { Footer } from "@/components/Footer";
 
 describe("Footer", () => {
-  it("「Prestimo」の表記がある", () => {
+  it("コピーライト表記に Y.K.TaylorTokyo が含まれる", () => {
     render(<Footer />);
-    expect(screen.getByText(/Prestimo/)).toBeInTheDocument();
+    expect(screen.getByText(/© 2026 Y\.K\.TaylorTokyo/)).toBeInTheDocument();
   });
 
-  it("コピーライト表記がある", () => {
+  it("運営会社名「株式会社TaylorMode」が表示される", () => {
     render(<Footer />);
-    expect(screen.getByText(/© 2026 Prestimo/)).toBeInTheDocument();
+    expect(screen.getByText(/株式会社TaylorMode/)).toBeInTheDocument();
+  });
+
+  it("運営会社のリンクが正しいURLを持つ", () => {
+    render(<Footer />);
+    const link = screen.getByRole("link", { name: /株式会社TaylorMode/ });
+    expect(link).toHaveAttribute("href", "https://taylormode.co.jp/company/");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
 
   it("料金データ最終取得日が表示される", () => {
